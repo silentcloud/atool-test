@@ -1,6 +1,6 @@
 # atool-test
 
-> `note`: If you want to run tests with browser, use version 0.4.x. 
+> `note`: Tests with browser, use version 0.4.x. 
 
 [![NPM version](https://img.shields.io/npm/v/atool-test.svg?style=flat)](https://npmjs.org/package/atool-test)
 [![Build Status](https://img.shields.io/travis/ant-tool/atool-test.svg?style=flat)](https://travis-ci.org/ant-tool/atool-test)
