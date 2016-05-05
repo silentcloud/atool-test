@@ -1,5 +1,11 @@
 # History
 
+## 0.5.0-beta
+
+- 移除 phantomJS, 依赖 jsdom, 使用原生 mocha 方式跑测试用例;
+- 移出 wepbpack 相关编译, 跑测试用例的方式;
+- 移出基于测试代码浏览器调试, 调试请使用 [atool-doc](https://github.com/ant-tool/atool-doc) 
+
 ## 0.4.11
 
 - 支持指定测试文件, 配置 webpack.config.js 的 entry = [...];

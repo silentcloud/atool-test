@@ -1,60 +1,46 @@
-import assign from 'object-assign';
-import path, { join } from 'path';
+import { join } from 'path';
+import { spawn, exec } from 'child_process';
+import { platform } from 'os';
 import fs from 'fs';
-import server from 'dora';
-import exeq from 'exeq';
-import { green, gray, cyan, yellow } from 'chalk';
 
 const cwd = process.cwd();
 
 export default function(config) {
-  server(assign({}, config, {
-    plugins: [
-      join(__dirname, `./build?chai=${config.chai}&coverage=${config.coverage}&config=${config.config}`),
-      join(__dirname, './rewrite'),
-    ],
-  }), () => {
-    const url = `http://127.0.0.1:${config.port}/tests/runner.html`;
-    const mochaPhantomBin = join(require.resolve('mocha-phantomjs'), '../../bin/mocha-phantomjs');
+  const setupFile = join(__dirname, 'setup.js');
+  const compiler = join(__dirname, './compiler');
 
-    const cmds = [];
-    if (config.coverage) {
-      const hook = join(__dirname, './coverageHook.js');
-      cmds.push([`${mochaPhantomBin} ${url}?cov --hooks ${hook}`]);
-      const istanbulBin = require.resolve('istanbul/lib/cli.js');
-      cmds.push(`node ${istanbulBin} report lcov json-summary --include coverage/coverage.json`);
-    } else {
-      cmds.push([`${mochaPhantomBin} ${url}`]);
+  let mochaBin;
+  let cmd;
+
+  const coverageDir = join(cwd, 'coverage');
+  fs.access(coverageDir, fs.R_OK, (err) => {
+    if (!err) {
+      exec('rm -rf ' + coverageDir);
     }
+  });
 
-    exeq.apply(this, cmds).then(() => {
+  const mochaArgs = config.args.join(' ');
+  if (config.coverage) {
+    mochaBin = join(require.resolve('mocha'), '../bin/_mocha');
+    const istanbul = join(require.resolve('istanbul'), '../lib/cli.js');
+    cmd = `node ${istanbul} cover ${mochaBin} -- --compilers .:${compiler} --require ${setupFile} ${mochaArgs}`;
+  } else {
+    mochaBin = join(require.resolve('mocha'), '../bin/mocha');
+    cmd = `${mochaBin} --compilers .:${compiler} --require ${setupFile} ${mochaArgs}`;
+  }
+
+  const command = (platform() === 'win32' ? 'cmd.exe' : 'sh');
+  const args = (platform() === 'win32' ? ['/s', '/c'] : ['-c']);
+
+  const cp = spawn(command, args.concat([cmd]), {
+    stdio: 'inherit',
+  });
+
+  cp.on('exit', () => {
+    if (config.coverage) {
       console.log();
-      if (config.keep) {
-        console.log(yellow(`  Testing on http://127.0.0.1:${config.port}/tests/runner.html`));
-      }
-
-      if (config.coverage) {
-        const summaryFile = join(cwd, 'coverage/coverage-summary.json');
-        if (fs.existsSync(summaryFile)) {
-          console.log();
-          const covJSON = require(summaryFile);
-          for (const file in covJSON) {
-            if (covJSON.hasOwnProperty(file)) {
-              console.log('    ' + path.relative(process.cwd(), file) + ': ' +
-                green(covJSON[file].lines.pct + '% ') + gray('coverage ') +
-                green(covJSON[file].lines.covered.toString()) + gray(' lines covered ')
-              );
-            }
-          }
-          console.log();
-          console.log(cyan('  You can see more detail in coverage/lcov-report/index.html'));
-          console.log();
-        }
-      }
-
-      if (!config.keep) process.exit(0);
-    }).catch((err) => {
-      if (!config.keep) process.exit(err.code);
-    });
+      console.log('You can see more detail in coverage/lcov-report/index.html');
+      console.log();
+    }
   });
 }
